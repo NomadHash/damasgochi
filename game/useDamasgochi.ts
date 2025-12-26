@@ -165,7 +165,7 @@ export function useDamasgochi() {
 
         // 응가 생성 로직 (배가 부를수록 응가 확률 증가)
         let poopCount = prev.poopCount;
-        if (status === 'alive' && prev.hunger > 50 && Math.random() < 0.3) {
+        if (status === 'alive' && prev.hunger > 50 && Math.random() < 0.05) {
           poopCount = Math.min(3, poopCount + 1);
         }
 
@@ -235,6 +235,7 @@ export function useDamasgochi() {
         ...prev,
         hunger: Math.min(100, prev.hunger + 15),
         happiness: Math.min(100, prev.happiness + 2),
+        health: Math.min(100, prev.health + 30), // 밥 먹으면 건강도 대폭 회복
         feedCount: prev.feedCount - 1,
         xp,
         level
