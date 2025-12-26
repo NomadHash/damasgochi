@@ -21,6 +21,30 @@ const decryptData = (encoded: string): string => {
 
 export type PetStatus = 'alive' | 'dead' | 'sleeping';
 
+export type AnimalEffectType = 'xp1' | 'xp2' | 'xp3' | 'coins' | 'food' | 'play';
+
+export const ANIMAL_EFFECTS: Record<string, { type: AnimalEffectType; label: string }> = {
+  '🐶': { type: 'xp1', label: '배달 경험치 +1 XP' },
+  '🐱': { type: 'xp1', label: '배달 경험치 +1 XP' },
+  '🐭': { type: 'xp1', label: '배달 경험치 +1 XP' },
+  '🐹': { type: 'xp1', label: '배달 경험치 +1 XP' },
+  '🐰': { type: 'play', label: '1분마다 놀이세트 증정' },
+  '🦊': { type: 'xp2', label: '배달 경험치 +2 XP' },
+  '🐻': { type: 'coins', label: '1분마다 10코인 증정' },
+  '🐼': { type: 'xp2', label: '배달 경험치 +2 XP' },
+  '🐨': { type: 'xp2', label: '배달 경험치 +2 XP' },
+  '🐯': { type: 'coins', label: '1분마다 10코인 증정' },
+  '🦁': { type: 'coins', label: '1분마다 10코인 증정' },
+  '🐮': { type: 'food', label: '1분마다 사과세트 증정' },
+  '🐷': { type: 'food', label: '1분마다 사과세트 증정' },
+  '🐸': { type: 'xp3', label: '배달 경험치 +3 XP' },
+  '🐵': { type: 'food', label: '1분마다 사과세트 증정' },
+  '🐣': { type: 'xp1', label: '배달 경험치 +1 XP' },
+  '🐧': { type: 'xp3', label: '배달 경험치 +3 XP' },
+  '🦆': { type: 'xp1', label: '배달 경험치 +1 XP' },
+  '🦋': { type: 'xp3', label: '배달 경험치 +3 XP' },
+};
+
 export interface PetState {
   name: string;
   hunger: number;
@@ -37,6 +61,8 @@ export interface PetState {
   xp: number;
   poopCount: number;
   collectedAnimals: string[];
+  coins: number;
+  hasDiaper: boolean;
 }
 
 const INITIAL_STATE: PetState = {
@@ -55,6 +81,8 @@ const INITIAL_STATE: PetState = {
   xp: 0,
   poopCount: 0,
   collectedAnimals: [],
+  coins: 0,
+  hasDiaper: false,
 };
 
 export function useDamasgochi() {
@@ -122,6 +150,8 @@ export function useDamasgochi() {
           xp: parsed.xp ?? 0,
           poopCount: parsed.poopCount ?? 0,
           collectedAnimals: parsed.collectedAnimals ?? [],
+          coins: parsed.coins ?? 0,
+          hasDiaper: parsed.hasDiaper ?? false,
           lastCountReset: today,
           lastUpdate: now,
         });
@@ -143,9 +173,29 @@ export function useDamasgochi() {
   useEffect(() => {
     if (!isInitialized || pet.status === 'dead') return;
 
+    // 1분(60초)마다 보상 지급을 위한 카운터 (3초 간격이므로 20번)
+    let minuteCounter = 0;
+
     const interval = setInterval(() => {
       setPet((prev) => {
         if (prev.status === 'dead') return prev;
+
+        minuteCounter++;
+        let coinsBonus = 0;
+        let foodBonus = 0;
+        let playBonus = 0;
+
+        // 1분(20틱)마다 보상 계산
+        if (minuteCounter >= 20) {
+          minuteCounter = 0;
+          prev.collectedAnimals.forEach(animal => {
+            const effect = ANIMAL_EFFECTS[animal];
+            if (!effect) return;
+            if (effect.type === 'coins') coinsBonus += 10;
+            if (effect.type === 'food') foodBonus += 3;
+            if (effect.type === 'play') playBonus += 3;
+          });
+        }
 
         const hunger = Math.max(0, prev.hunger - 2);
         const energy = prev.status === 'sleeping' 
@@ -165,31 +215,9 @@ export function useDamasgochi() {
 
         // 응가 생성 로직 (배가 부를수록 응가 확률 증가)
         let poopCount = prev.poopCount;
-        if (status === 'alive' && prev.hunger > 50 && Math.random() < 0.05) {
+        const poopProb = prev.hasDiaper ? 0.025 : 0.05; // 기저귀 착용 시 확률 절반
+        if (status === 'alive' && prev.hunger > 50 && Math.random() < poopProb) {
           poopCount = Math.min(3, poopCount + 1);
-        }
-
-        // 경험치 획득 로직
-        let xp = prev.xp + (health > 50 ? 5 : 0);
-        let level = prev.level;
-        const xpToNextLevel = level * 100;
-
-        if (xp >= xpToNextLevel) {
-          xp -= xpToNextLevel;
-          level += 1;
-          // 레벨업 시 모든 수치 30% 회복
-          return {
-            ...prev,
-            hunger: Math.min(100, (prev.hunger || 0) + 30),
-            energy: Math.min(100, (prev.energy || 0) + 30),
-            happiness: Math.min(100, (prev.happiness || 0) + 30),
-            health: Math.min(100, (prev.health || 0) + 30),
-            status: 'alive',
-            xp,
-            level,
-            poopCount,
-            lastUpdate: Date.now(),
-          };
         }
 
         return {
@@ -199,9 +227,10 @@ export function useDamasgochi() {
           happiness,
           health,
           status,
-          xp,
-          level,
           poopCount,
+          coins: (prev.coins || 0) + coinsBonus,
+          feedCount: (prev.feedCount || 0) + foodBonus,
+          playCount: (prev.playCount || 0) + playBonus,
           lastUpdate: Date.now(),
         };
       });
@@ -228,7 +257,8 @@ export function useDamasgochi() {
           happiness: Math.min(100, prev.happiness + 30),
           health: Math.min(100, prev.health + 30),
           xp,
-          level
+          level,
+          coins: (prev.coins || 0) + 100
         };
       }
       return {
@@ -262,7 +292,8 @@ export function useDamasgochi() {
           happiness: Math.min(100, prev.happiness + 30),
           health: Math.min(100, prev.health + 30),
           xp,
-          level
+          level,
+          coins: (prev.coins || 0) + 100
         };
       }
       return {
@@ -286,7 +317,15 @@ export function useDamasgochi() {
     const triggerGift = Math.random() < 0.005;
 
     setPet((prev) => {
-      let xp = prev.xp + 1;
+      const animalBonus = prev.collectedAnimals.reduce((acc, animal) => {
+        const effect = ANIMAL_EFFECTS[animal];
+        if (!effect) return acc;
+        if (effect.type === 'xp1') return acc + 1;
+        if (effect.type === 'xp2') return acc + 2;
+        if (effect.type === 'xp3') return acc + 3;
+        return acc;
+      }, 0);
+      let xp = prev.xp + 1 + animalBonus;
       let level = prev.level;
       const xpToNextLevel = level * 100;
       if (xp >= xpToNextLevel) {
@@ -299,7 +338,8 @@ export function useDamasgochi() {
           happiness: Math.min(100, prev.happiness + 30),
           health: Math.min(100, prev.health + 30),
           xp,
-          level
+          level,
+          coins: (prev.coins || 0) + 100
         };
       }
       return {
@@ -320,7 +360,7 @@ export function useDamasgochi() {
     
     setPet(prev => ({
       ...prev,
-      collectedAnimals: [...prev.collectedAnimals, randomAnimal].slice(-5), // 최대 5마리까지만 옆에 노출
+      collectedAnimals: [...prev.collectedAnimals, randomAnimal],
       xp: prev.xp + 100, // 동물 뽑으면 보너스 경험치
     }));
     
@@ -343,7 +383,8 @@ export function useDamasgochi() {
           happiness: Math.min(100, prev.happiness + 30),
           health: Math.min(100, prev.health + 30),
           xp,
-          level
+          level,
+          coins: (prev.coins || 0) + 100
         };
       }
       return { ...prev, xp, level };
@@ -376,6 +417,7 @@ export function useDamasgochi() {
           health: Math.min(100, prev.health + 30),
           xp,
           level,
+          coins: (prev.coins || 0) + 100,
           poopCount: Math.max(0, prev.poopCount - 1),
         };
       }
@@ -423,6 +465,19 @@ export function useDamasgochi() {
     setIsAutoDelivering(prev => !prev);
   }, []);
 
+  const buyItem = useCallback((item: 'diaper' | 'food' | 'play', price: number) => {
+    if ((pet.coins || 0) < price) return false;
+    
+    setPet(prev => ({
+      ...prev,
+      coins: prev.coins - price,
+      hasDiaper: item === 'diaper' ? true : prev.hasDiaper,
+      feedCount: item === 'food' ? prev.feedCount + 3 : prev.feedCount,
+      playCount: item === 'play' ? prev.playCount + 3 : prev.playCount,
+    }));
+    return true;
+  }, [pet.coins]);
+
   const prevLevelRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -434,6 +489,6 @@ export function useDamasgochi() {
     }
   }, [pet.level, isInitialized]);
 
-  return { pet, feed, play, sleep, reset, revive, rename, refillFeed, refillPlay, deliver, addBonusXp, cleanPoop, toggleAutoDeliver, drawAnimal, isInitialized, lastAction, deliverEffectKey, showLevelUp, isAutoDelivering };
+  return { pet, feed, play, sleep, reset, revive, rename, refillFeed, refillPlay, deliver, addBonusXp, cleanPoop, toggleAutoDeliver, drawAnimal, buyItem, isInitialized, lastAction, deliverEffectKey, showLevelUp, isAutoDelivering };
 }
 

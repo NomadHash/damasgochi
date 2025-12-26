@@ -20,12 +20,37 @@ const ProgressBar = ({ label, value, color }: { label: string; value: number; co
 );
 
 export default function DamasgochiUI() {
-  const { pet, feed, play, sleep, reset, revive, rename, refillFeed, refillPlay, deliver, addBonusXp, cleanPoop, toggleAutoDeliver, drawAnimal, isInitialized, lastAction, deliverEffectKey, showLevelUp, isAutoDelivering } = useDamasgochi();
+  const { pet, feed, play, sleep, reset, revive, rename, refillFeed, refillPlay, deliver, addBonusXp, cleanPoop, toggleAutoDeliver, drawAnimal, buyItem, isInitialized, lastAction, deliverEffectKey, showLevelUp, isAutoDelivering } = useDamasgochi();
+  
+  // ANIMAL_EFFECTS를 useDamasgochi에서 가져오거나 직접 정의
+  const ANIMAL_EFFECTS: Record<string, { label: string }> = {
+    '🐶': { label: '배달 경험치 +1 XP' },
+    '🐱': { label: '배달 경험치 +1 XP' },
+    '🐭': { label: '배달 경험치 +1 XP' },
+    '🐹': { label: '배달 경험치 +1 XP' },
+    '🐰': { label: '1분마다 놀이세트 증정' },
+    '🦊': { label: '배달 경험치 +2 XP' },
+    '🐻': { label: '1분마다 10코인 증정' },
+    '🐼': { label: '배달 경험치 +2 XP' },
+    '🐨': { label: '배달 경험치 +2 XP' },
+    '🐯': { label: '1분마다 10코인 증정' },
+    '🦁': { label: '1분마다 10코인 증정' },
+    '🐮': { label: '1분마다 사과세트 증정' },
+    '🐷': { label: '1분마다 사과세트 증정' },
+    '🐸': { label: '배달 경험치 +3 XP' },
+    '🐵': { label: '1분마다 사과세트 증정' },
+    '🐣': { label: '배달 경험치 +1 XP' },
+    '🐧': { label: '배달 경험치 +3 XP' },
+    '🦆': { label: '배달 경험치 +1 XP' },
+    '🦋': { label: '배달 경험치 +3 XP' },
+  };
+
   const [isEditingName, setIsEditingName] = React.useState(false);
   const [newName, setNewName] = React.useState(pet.name);
   const [showPayModal, setShowPayModal] = React.useState(false);
   const [showSpecialMission, setShowSpecialMission] = React.useState(false);
   const [showGiftBox, setShowGiftBox] = React.useState(false);
+  const [showStore, setShowStore] = React.useState(false);
   const [newAnimal, setNewAnimal] = React.useState<string | null>(null);
   const [missionInput, setMissionInput] = React.useState('');
   const [paymentType, setPaymentType] = React.useState<'revive' | 'feed' | 'play'>('revive');
@@ -36,7 +61,7 @@ export default function DamasgochiUI() {
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
-        if (!isEditingName && !showPayModal && !showSpecialMission && !showGiftBox && pet.status === 'alive') {
+        if (!isEditingName && !showPayModal && !showSpecialMission && !showGiftBox && !showStore && pet.status === 'alive') {
           e.preventDefault();
           
           if (isAutoDelivering) {
@@ -51,7 +76,7 @@ export default function DamasgochiUI() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [deliver, toggleAutoDeliver, isAutoDelivering, isEditingName, showPayModal, showSpecialMission, showGiftBox, pet.status]);
+  }, [deliver, toggleAutoDeliver, isAutoDelivering, isEditingName, showPayModal, showSpecialMission, showGiftBox, showStore, pet.status]);
 
   if (!isInitialized) return <div className="p-12 text-center font-mono text-green-800 text-xl">LOADING...</div>;
 
@@ -130,6 +155,11 @@ export default function DamasgochiUI() {
               <div className="absolute inset-0 bg-white/10 pointer-events-none animate-pulse"></div>
             )}
 
+            <div className="absolute bottom-2 right-4 flex items-center gap-1 bg-yellow-400/30 px-3 py-1 rounded-full border-2 border-yellow-600/40 shadow-sm z-20 animate-in fade-in slide-in-from-right-2 duration-500">
+              <span className="text-xs font-black text-yellow-950">💰</span>
+              <span className="text-xs font-black text-yellow-950">{pet.coins || 0}</span>
+            </div>
+
             <div className="absolute top-4 right-4 text-xs font-bold text-green-900 opacity-60">
               {pet.status.toUpperCase()}
             </div>
@@ -158,11 +188,38 @@ export default function DamasgochiUI() {
             <div className="flex-1 flex items-center justify-center w-full my-6 select-none relative">
               {/* Collected Animals */}
               <div className="absolute left-2 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-10">
-                {pet.collectedAnimals.map((animal, i) => (
-                  <div key={`animal-${i}`} className="text-2xl animate-in fade-in slide-in-from-left-2 duration-500 shadow-sm filter drop-shadow-sm">
-                    {animal}
+                {pet.collectedAnimals.slice(-5).map((animal, i) => (
+                  <div key={`animal-${i}`} className="group relative">
+                    <div className="text-2xl animate-in fade-in slide-in-from-left-2 duration-500 shadow-sm filter drop-shadow-sm cursor-help">
+                      {animal}
+                    </div>
+                    {/* Tooltip */}
+                    <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 hidden group-hover:block z-50">
+                      <div className="bg-black/80 text-white text-[10px] py-1 px-2 rounded-lg whitespace-nowrap backdrop-blur-sm border border-white/20">
+                        {ANIMAL_EFFECTS[animal]?.label || '특수 효과 없음'}
+                      </div>
+                      <div className="absolute top-1/2 -translate-y-1/2 -left-1 w-2 h-2 bg-black/80 rotate-45 border-l border-b border-white/20"></div>
+                    </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Purchased Items */}
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-10">
+                {pet.hasDiaper && (
+                  <div className="group relative">
+                    <div className="text-2xl animate-in fade-in slide-in-from-right-2 duration-500 shadow-sm filter drop-shadow-sm cursor-help">
+                      🚼
+                    </div>
+                    {/* Tooltip */}
+                    <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 hidden group-hover:block z-50">
+                      <div className="bg-black/80 text-white text-[10px] py-1 px-2 rounded-lg whitespace-nowrap backdrop-blur-sm border border-white/20">
+                        기저귀: 응아 확률 50% 감소
+                      </div>
+                      <div className="absolute top-1/2 -translate-y-1/2 -right-1 w-2 h-2 bg-black/80 rotate-45 border-r border-t border-white/20"></div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Poops */}
@@ -196,8 +253,8 @@ export default function DamasgochiUI() {
               {lastAction === 'deliver' && (
                 <div key={deliverEffectKey} className="absolute inset-0 z-30 pointer-events-none flex flex-col items-center justify-center">
                   <div className="text-5xl animate-[deliver_0.3s_ease-in-out]">👕 </div>
-                  <div className="text-xl font-black text-gray-800 animate-bounce left-0 absolute top-0">
-                    +1 XP
+                  <div className="text-xl font-black text-gray-800 animate-bounce left-0 absolute top-0 whitespace-nowrap">
+                    +{1 + pet.collectedAnimals.length} XP
                   </div>
                   <div className="absolute right-0 text-4xl animate-pulse opacity-60">💨</div>
                 </div>
@@ -474,21 +531,127 @@ export default function DamasgochiUI() {
             </div>
           </div>
         )}
+
+        {/* Store Modal */}
+        {showStore && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-indigo-600/40 backdrop-blur-md"></div>
+            <div className="bg-white p-6 rounded-[3rem] shadow-2xl flex flex-col w-full max-w-md relative z-10 animate-in zoom-in duration-300 border-[12px] border-indigo-400">
+              <div className="flex justify-between items-center mb-6">
+                <div className="text-indigo-600 font-black text-2xl">🏪 다마스 상점</div>
+                <div className="bg-yellow-100 px-3 py-1 rounded-full flex items-center gap-1 border border-yellow-400">
+                  <span className="text-sm">💰</span>
+                  <span className="text-sm font-black text-yellow-700">{pet.coins || 0}</span>
+                </div>
+              </div>
+
+              <div className="space-y-4 mb-8">
+                {/* Diaper Item */}
+                <div className={`p-4 rounded-3xl border-4 transition-all flex items-center justify-between ${pet.hasDiaper ? 'border-gray-100 bg-gray-50' : 'border-indigo-100 bg-indigo-50/50'}`}>
+                  <div className="flex items-center gap-4">
+                    <div className="text-4xl bg-white p-3 rounded-2xl shadow-sm">🚼</div>
+                    <div>
+                      <div className="font-black text-lg text-gray-800">기저귀</div>
+                      <div className="text-xs font-bold text-indigo-500">응아 확률 50% 감소</div>
+                    </div>
+                  </div>
+                  {pet.hasDiaper ? (
+                    <div className="bg-gray-200 text-gray-500 px-4 py-2 rounded-xl font-black text-sm">보유 중</div>
+                  ) : (
+                    <button 
+                      onClick={() => {
+                        if (buyItem('diaper', 300)) {
+                          alert('기저귀를 구매했습니다! 이제 응아를 덜 싸요!');
+                        } else {
+                          alert('코인이 부족합니다! 열심히 배달해서 모아보세요!');
+                        }
+                      }}
+                      className="bg-indigo-500 text-white px-4 py-2 rounded-xl font-black text-sm hover:bg-indigo-600 shadow-md active:scale-95 transition-all"
+                    >
+                      300 코인
+                    </button>
+                  )}
+                </div>
+
+                {/* Food Item */}
+                <div className="p-4 rounded-3xl border-4 border-indigo-100 bg-indigo-50/50 transition-all flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="text-4xl bg-white p-3 rounded-2xl shadow-sm">🍎</div>
+                    <div>
+                      <div className="font-black text-lg text-gray-800">사과 세트</div>
+                      <div className="text-xs font-bold text-indigo-500">배고픔 회복 횟수 +3</div>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      if (buyItem('food', 30)) {
+                        alert('사과 세트를 구매했습니다!');
+                      } else {
+                        alert('코인이 부족합니다!');
+                      }
+                    }}
+                    className="bg-indigo-500 text-white px-4 py-2 rounded-xl font-black text-sm hover:bg-indigo-600 shadow-md active:scale-95 transition-all"
+                  >
+                    30 코인
+                  </button>
+                </div>
+
+                {/* Play Item */}
+                <div className="p-4 rounded-3xl border-4 border-indigo-100 bg-indigo-50/50 transition-all flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="text-4xl bg-white p-3 rounded-2xl shadow-sm">🎾</div>
+                    <div>
+                      <div className="font-black text-lg text-gray-800">놀이 세트</div>
+                      <div className="text-xs font-bold text-indigo-500">행복 회복 횟수 +3</div>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      if (buyItem('play', 30)) {
+                        alert('놀이 세트를 구매했습니다!');
+                      } else {
+                        alert('코인이 부족합니다!');
+                      }
+                    }}
+                    className="bg-indigo-500 text-white px-4 py-2 rounded-xl font-black text-sm hover:bg-indigo-600 shadow-md active:scale-95 transition-all"
+                  >
+                    30 코인
+                  </button>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setShowStore(false)}
+                className="w-full bg-gray-100 text-gray-500 font-black py-4 rounded-2xl text-lg hover:bg-gray-200 transition-all shadow-inner"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="mt-12 max-w-sm text-center">
         <div className="flex flex-col gap-2 mb-6">
-          <button 
-            onClick={toggleAutoDeliver}
-            disabled={pet.status !== 'alive'}
-            className={`w-full py-4 rounded-2xl text-sm font-black transition-all border-2 shadow-md mb-2 ${
-              isAutoDelivering 
-                ? 'bg-red-500 text-white border-red-600 animate-pulse' 
-                : 'bg-green-500 text-white border-green-600 hover:bg-green-600'
-            } disabled:opacity-50 disabled:grayscale`}
-          >
-            {isAutoDelivering ? '🛑 자동 배달 중지' : '🤖 자동 배달 시작 (3초마다)'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowStore(true)}
+              className="flex-1 bg-indigo-500 text-white py-4 rounded-2xl font-black shadow-lg border-b-4 border-indigo-900 active:border-b-0 active:translate-y-1 transition-all flex items-center justify-center gap-2"
+            >
+              🏪 상점
+            </button>
+            <button 
+              onClick={toggleAutoDeliver}
+              disabled={pet.status !== 'alive'}
+              className={`flex-[2] py-4 rounded-2xl text-sm font-black transition-all border-2 shadow-md ${
+                isAutoDelivering 
+                  ? 'bg-red-500 text-white border-red-600 animate-pulse' 
+                  : 'bg-green-500 text-white border-green-600 hover:bg-green-600'
+              } disabled:opacity-50 disabled:grayscale`}
+            >
+              {isAutoDelivering ? '🛑 자동 배달 중지' : '🤖 자동 배달 시작'}
+            </button>
+          </div>
           {pet.poopCount > 0 && (
             <div className="bg-orange-100/80 backdrop-blur-md text-orange-600 px-6 py-4 rounded-2xl text-sm font-black animate-bounce border-2 border-orange-200 shadow-md mb-2 cursor-pointer text-center"
                  onClick={cleanPoop}>
@@ -496,7 +659,7 @@ export default function DamasgochiUI() {
             </div>
           )}
           <div className="bg-blue-100/80 backdrop-blur-md text-blue-600 px-6 py-4 rounded-2xl text-sm font-black animate-pulse border-2 border-blue-200 shadow-md whitespace-nowrap">
-            SPACEBAR 연타로 세탁물 배달! (+1 XP)
+            SPACEBAR 연타로 세탁물 배달! (+{1 + pet.collectedAnimals.length} XP)
           </div>
         </div>
         <div className="inline-block px-4 py-2 bg-gray-100 rounded-full text-xs font-bold text-gray-500 border border-gray-200">
